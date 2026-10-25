@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
@@ -11,6 +11,7 @@ const adminRouter = require('./routes/admin');
 const violationsRouter = require('./routes/violations');
 const announcementsRouter = require('./routes/announcements');
 const reservationsRouter = require('./routes/reservations');
+const navigationRouter = require('./routes/navigation');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/violations', violationsRouter);
 app.use('/api/announcements', announcementsRouter);
 app.use('/api/reservations', reservationsRouter);
+app.use('/api/navigation', navigationRouter);
 
 const PORT = process.env.PORT || 5000;
 
@@ -38,3 +40,4 @@ connectDB().then(() => {
     console.log(`TUPark API listening on port ${PORT}`);
   });
 });
+
