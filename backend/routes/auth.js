@@ -233,12 +233,16 @@ router.post('/login', async (req, res) => {
     const passwordMatch = await bcrypt.compare(password, user.passwordHash);
 
     if (!passwordMatch) {
-      user.failedLoginAttempts += 1;
+      const nextAttempts = (Number(user.failedLoginAttempts) || 0) + 1;
 
-      if (user.failedLoginAttempts >= LOCKOUT_THRESHOLD) {
-        user.lockUntil = new Date(Date.now() + LOCKOUT_MS);
-        user.failedLoginAttempts = 0;
-        await user.save();
+      if (nextAttempts >= LOCKOUT_THRESHOLD) {
+        const lockUntil = new Date(Date.now() + LOCKOUT_MS);
+
+        await User.updateOne(
+          { _id: user._id },
+          { $set: { failedLoginAttempts: 0, lockUntil } }
+        );
+
         const lockedForSeconds = Math.ceil(LOCKOUT_MS / 1000);
         return res.status(423).json({
           message: `Account temporarily locked. Try again in ${lockedForSeconds} seconds.`,
@@ -246,8 +250,12 @@ router.post('/login', async (req, res) => {
         });
       }
 
-      await user.save();
-      const attemptsLeft = LOCKOUT_THRESHOLD - user.failedLoginAttempts;
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { failedLoginAttempts: nextAttempts } }
+      );
+
+      const attemptsLeft = LOCKOUT_THRESHOLD - nextAttempts;
       return res.status(401).json({
         message: `Incorrect password. ${attemptsLeft} attempt(s) left before lockout.`,
       });
@@ -267,9 +275,10 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    user.failedLoginAttempts = 0;
-    user.lockUntil = null;
-    await user.save();
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { failedLoginAttempts: 0, lockUntil: null } }
+    );
 
     res.status(200).json({
       message: 'Login successful.',
@@ -400,9 +409,10 @@ router.post('/reset-password', resetLimiter, async (req, res) => {
     user.resetCodeHash = null; // single use
     user.resetCodeExpires = null;
     user.resetCodeAttempts = 0;
-    user.failedLoginAttempts = 0;
-    user.lockUntil = null;
-    await user.save();
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { failedLoginAttempts: 0, lockUntil: null } }
+    );
 
     res.json({ message: 'Password updated. You can now log in with your new password.' });
   } catch (error) {
