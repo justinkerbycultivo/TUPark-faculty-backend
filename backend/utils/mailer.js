@@ -1,40 +1,92 @@
-const nodemailer = require('nodemailer');
 
-// SMTP settings come ONLY from environment variables (see .env.example).
-// If they are missing, sendMail() reports { sent: false } so the caller can
-// log it; it never pretends an email was delivered.
-function smtpConfigured() {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
+
+function getSender() {
+  const configured = process.env.MAIL_FROM || '';
+
+  // Supports: TUPark System <sender@example.com>
+  const match = configured.match(/^(.*?)\s*<([^<>]+)>$/);
+
+  if (match) {
+    return {
+      name: match[1].trim() || 'TUPark System',
+      email: match[2].trim(),
+    };
+  }
+
+  return {
+    name: 'TUPark System',
+    email: configured.trim(),
+  };
 }
 
-let transporter = null;
-function getTransporter() {
-  if (!transporter) {
-    const port = Number(process.env.SMTP_PORT) || 587;
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port,
-      secure: port === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-  }
-  return transporter;
+function brevoConfigured() {
+  return Boolean(
+    process.env.BREVO_API_KEY &&
+    process.env.MAIL_FROM &&
+    getSender().email
+  );
+}
+
+// Retain the existing function name for compatibility
+// with backend/routes/auth.js.
+function smtpConfigured() {
+  return brevoConfigured();
 }
 
 async function sendMail({ to, subject, text }) {
-  if (!smtpConfigured()) return { sent: false, reason: 'SMTP is not configured' };
+  if (!brevoConfigured()) {
+    return {
+      sent: false,
+      reason: 'Brevo API is not configured',
+    };
+  }
+
   try {
-    await getTransporter().sendMail({
-      from: process.env.MAIL_FROM || process.env.SMTP_USER,
-      to,
-      subject,
-      text,
+    const response = await fetch(BREVO_API_URL, {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': process.env.BREVO_API_KEY,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: getSender(),
+        to: [{ email: to }],
+        subject,
+        textContent: text,
+      }),
+      signal: AbortSignal.timeout(15000),
     });
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      console.error(
+        'Brevo API error:',
+        response.status,
+        responseText.slice(0, 1000)
+      );
+
+      return {
+        sent: false,
+        reason: `Brevo API returned HTTP ${response.status}`,
+      };
+    }
+
     return { sent: true };
-  } catch (err) {
-    console.error('Mail send failed:', err.message);
-    return { sent: false, reason: err.message };
+  } catch (error) {
+    console.error('Brevo API request failed:', error.message);
+
+    return {
+      sent: false,
+      reason: error.message || 'Brevo API request failed',
+    };
   }
 }
 
-module.exports = { sendMail, smtpConfigured };
+module.exports = {
+  sendMail,
+  smtpConfigured,
+  brevoConfigured,
+};
