@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "TUPark",
+    "slug": "tupark",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#8B1538"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "edu.tupcavite.tupark"
+    },
+    "android": {
+      "package": "edu.tupcavite.tupark",
+      "adaptiveIcon": {
+        "backgroundColor": "#8B1538"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "TUPark uses your camera to scan student/visitor QR codes at campus entry and exit."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "TUPark uses your camera to capture a verification photo of your parked vehicle or a violation photo."
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ebbd393d-52f2-4c0a-afa0-af93cc1b22f4"
+      }
+    }
+  }
+}
